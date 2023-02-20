@@ -1,21 +1,21 @@
-package com.humaneBicycle.stepCount.utils;
+package com.humaneBicycle.stepCount.model;
 
 public class Accelerometer {
     public float X;
     public float Y;
     public float Z;
-    public double R;
+    public double acceleration;
 
 
     public Accelerometer(float[] event) {
         X = event[0];
         Y = event[1];
         Z = event[2];
-        R = Math.sqrt(X*X + Y*Y + Z*Z);
+        acceleration = Math.sqrt(X*X + Y*Y + Z*Z);
     }
 
     public Number toNumber() {
-        Number number = R;
+        Number number = acceleration;
         return number;
     }
 }

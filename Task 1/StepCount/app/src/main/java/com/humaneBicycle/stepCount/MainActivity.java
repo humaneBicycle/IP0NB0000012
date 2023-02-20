@@ -13,7 +13,7 @@ import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.humaneBicycle.stepCount.utils.Accelerometer;
+import com.humaneBicycle.stepCount.model.Accelerometer;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
         accelerationGraph.getViewport().setMaxX(350);
 
         lowPassFilterGraph = findViewById(R.id.lowPassFilterGraph);
-        lowPassFilterGraph.setTitle("Low Pass Filter Graph ");
+        lowPassFilterGraph.setTitle("Low Pass Filter Graph");
         lowPassFilterGraph.getViewport().setXAxisBoundsManual(true);
         lowPassFilterGraph.getViewport().setMinX(0);
         lowPassFilterGraph.getViewport().setMaxX(350);
@@ -94,26 +94,17 @@ public class MainActivity extends AppCompatActivity {
                 y.setText(Float.toString(y_acc));
                 z.setText(Float.toString(z_acc));
 
+                handleEvent(event);
+                if(SAMPLING_ACTIVE) {
+                    sampleCount++;
+                    long now = System.currentTimeMillis();
+                    if (now >= startTime + 5000) {
+                        double samplingRate = sampleCount / ((now - startTime) / 1000.0);
+                        SAMPLING_ACTIVE = false;
+                        Toast.makeText(getApplicationContext(), "Sampling rate of your device is " + samplingRate + "Hz", Toast.LENGTH_LONG).show();
 
-                //calculating acceleration
-                double a =  Math.sqrt(Math.pow(x_acc,2)+Math.pow(y_acc,2)+Math.pow(z_acc,2));
-
-                if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-                    handleEvent(event);
-                    if(SAMPLING_ACTIVE) {
-                        sampleCount++;
-                        long now = System.currentTimeMillis();
-                        if (now >= startTime + 5000) {
-                            double samplingRate = sampleCount / ((now - startTime) / 1000.0);
-                            SAMPLING_ACTIVE = false;
-                            Toast.makeText(getApplicationContext(), "Sampling rate of your device is " + samplingRate + "Hz", Toast.LENGTH_LONG).show();
-
-                        }
                     }
                 }
-
-
-
             }
 
             @Override
@@ -153,10 +144,12 @@ public class MainActivity extends AppCompatActivity {
         text.append("X: " + data.X);
         text.append("Y: " + data.Y);
         text.append("Z: " + data.Z);
-        text.append("R: " + data.R);
-        rawData.appendData(new DataPoint(rawPoints++,raw.R), true,1000);
-        lpData.appendData(new DataPoint(rawPoints, data.R), true, 1000);
-        if(data.R > 10.5f){
+        text.append("R: " + data.acceleration);
+        rawData.appendData(new DataPoint(rawPoints++,raw.acceleration), true,1000);
+        lpData.appendData(new DataPoint(rawPoints, data.acceleration), true, 1000);
+
+
+        if(data.acceleration > 10.5f){
             CURRENT_STATE = ABOVE;
             if(PREVIOUS_STATE != CURRENT_STATE) {
                 streakStartTime = System.currentTimeMillis();
@@ -170,11 +163,11 @@ public class MainActivity extends AppCompatActivity {
             }
             PREVIOUS_STATE = CURRENT_STATE;
         }
-        else if(data.R < 10.5f) {
+        else if(data.acceleration < 10.5f) {
             CURRENT_STATE = BELOW;
             PREVIOUS_STATE = CURRENT_STATE;
         }
-        implementedCount.setText(""+(stepCount));;
+        implementedCount.setText(Integer.toString(stepCount));;
 
     }
 
