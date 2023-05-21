@@ -1,4 +1,4 @@
-estimated_heart_rate	actual_heart_rate	age	gender
-88	90	21	male
-			
-		 	
+estimated_heart_rate,actual_heart_rate,age,gender
+88,90,21,m
+"			",,,
+"		 	",,,
