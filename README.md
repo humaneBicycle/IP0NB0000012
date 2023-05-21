@@ -13,4 +13,5 @@
 ## Estimate Heart Rate
 
 * The sample data could be found [here](https://drive.google.com/drive/folders/13pcVNL2Y2oKPHTkQ53QaIpHNNlKOUu3z?usp=sharing)
-* 
+* The source code could be found [here](https://github.com/humaneBicycle/IP0NB0000012/tree/main/Task%202/EstimateHeartRate)
+* The jupyter notebook can be found [here]()
