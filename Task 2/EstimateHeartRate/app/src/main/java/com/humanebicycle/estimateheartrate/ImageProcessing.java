@@ -5,12 +5,12 @@ import android.graphics.Color;
 
 public abstract class ImageProcessing {
 
-    private static int decodeYUV420SPtoRedSum(byte[] yuv420sp, int width, int height) {
-        if (yuv420sp == null) return 0;
+    private static Pixel decodeYUV420SPtoSum(byte[] yuv420sp, int width, int height) {
+        if (yuv420sp == null) return new Pixel(0,0,0);
 
         final int frameSize = width * height;
 
-        int sum = 0;
+        int sumRed=0,sumGreen=0,sumBlue = 0;
         for (int j = 0, yp = 0; j < height; j++) {
             int uvp = frameSize + (j >> 1) * width, u = 0, v = 0;
             for (int i = 0; i < width; i++, yp++) {
@@ -34,10 +34,14 @@ public abstract class ImageProcessing {
 
                 int pixel = 0xff000000 | ((r << 6) & 0xff0000) | ((g >> 2) & 0xff00) | ((b >> 10) & 0xff);
                 int red = (pixel >> 16) & 0xff;
-                sum += red;
+                int green = (pixel>>8)&0xff;
+                int blue = pixel & 0xff;
+                sumRed += red;
+                sumGreen += green;
+                sumBlue += blue;
             }
         }
-        return sum;
+        return new Pixel(sumRed,sumGreen,sumBlue);
     }
 
 
@@ -89,12 +93,36 @@ public abstract class ImageProcessing {
             }
         }
     }
-    public static int decodeYUV420SPtoRedAvg(byte[] yuv420sp, int width, int height) {
-        if (yuv420sp == null) return 0;
+    public static Pixel decodeYUV420SPtoAvg(byte[] yuv420sp, int width, int height) {
+        if (yuv420sp == null) return new Pixel(0,0,0);
 
         final int frameSize = width * height;
 
-        int sum = decodeYUV420SPtoRedSum(yuv420sp, width, height);
-        return (sum / frameSize);
+        Pixel sum = decodeYUV420SPtoSum(yuv420sp, width, height);
+        Pixel p = new Pixel(sum.getRed()/frameSize, sum.getGreen()/frameSize, sum.getBlue()/frameSize);
+        return p;
+    }
+    static class Pixel{
+        int red;
+
+        public int getRed() {
+            return red;
+        }
+
+        public int getGreen() {
+            return green;
+        }
+
+        public int getBlue() {
+            return blue;
+        }
+
+        int green;
+        int blue;
+        public Pixel(int red, int green, int blue){
+            this.red=red;
+            this.blue=blue;
+            this.green=green;
+        }
     }
 }

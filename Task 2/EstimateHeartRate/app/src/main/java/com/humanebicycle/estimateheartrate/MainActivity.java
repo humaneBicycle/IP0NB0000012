@@ -27,6 +27,7 @@ import androidx.core.content.ContextCompat;
 import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.hardware.camera2.CameraCharacteristics;
 import android.os.Build;
@@ -42,15 +43,18 @@ import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity {
-    Button startMeasureButton, stopMeasureButton;
-    TextView heartRateTextView;
-    GraphView graphView;
+    Button startMeasureButton, stopMeasureButton, turnOnFlash;
+    TextView heartRateTextViewMean, heartRateTextViewMax;
+    GraphView redGraphView, greenGraphView, blueGraphView;
     PreviewView mPreviewView;
     Camera camera;
     int CAMERA_PERMISSION_REQUEST_CODE = 1098;
@@ -64,14 +68,15 @@ public class MainActivity extends AppCompatActivity {
     private static TYPE currentType = TYPE.GREEN;
     private static double beats = 0;
     private static int averageIndex = 0;
-    private static long startTime = 0;
+    private static long startTime = 0, counter=System.currentTimeMillis();
     private static int beatsIndex = 0;
     private static final int beatsArraySize = 3;
     private static final int[] beatsArray = new int[beatsArraySize];
-    private LineGraphSeries<DataPoint> rawData;
-    private int rawPoints = 0;
+    private LineGraphSeries<DataPoint> redData, greenData,blueData, rollingAverageSeries;
+    private int redPoints=0, greenPoints=0,bluePoints = 0, rollingAveragePoints=0;
     ImageAnalysis imageAnalysis;
     boolean isMeasuring = false;
+    List<Double> redDataValues;
 
 
     @Override
@@ -81,25 +86,71 @@ public class MainActivity extends AppCompatActivity {
 
         startMeasureButton = findViewById(R.id.start_measure);
         stopMeasureButton = findViewById(R.id.stop_measure);
-        heartRateTextView = findViewById(R.id.heart_rate);
-        graphView = findViewById(R.id.graph);
+        heartRateTextViewMean = findViewById(R.id.heart_rate_average);
+        heartRateTextViewMax = findViewById(R.id.heart_rate_max);
+        redGraphView = findViewById(R.id.red_graph);
+        greenGraphView = findViewById(R.id.green_graph);
+        blueGraphView = findViewById(R.id.blue_graph);
         mPreviewView = findViewById(R.id.camera_view);
+        turnOnFlash = findViewById(R.id.turn_on_flash);
 
         if(checkCameraPermission()){
             startCamera();
         }else{
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
         }
-        rawData=new LineGraphSeries<>();
-        graphView.addSeries(rawData);
-        graphView.getGridLabelRenderer().setVerticalLabelsVisible(false);
-        graphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+
+        redData=new LineGraphSeries<>();
+        redData.setColor(Color.RED);
+
+        greenData=new LineGraphSeries<>();
+        greenData.setColor(Color.GREEN);
+
+        blueData = new LineGraphSeries<>();
+        blueData.setColor(Color.BLUE);
+
+        rollingAverageSeries = new LineGraphSeries<>();
+
+        redGraphView.addSeries(redData);
+//        redGraphView.addSeries(rollingAverageSeries); //add rolling average to avg red values graph
+        redGraphView.setTitle("Average Red Pixels");
+        redGraphView.getViewport().setXAxisBoundsManual(true);
+        redGraphView.getViewport().setMinX(0);
+        redGraphView.getViewport().setMaxX(350);
+        redGraphView.getGridLabelRenderer().setVerticalLabelsVisible(false);
+        redGraphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+
+        greenGraphView.addSeries(greenData);
+        greenGraphView.setTitle("Average Green Pixels");
+        greenGraphView.getViewport().setXAxisBoundsManual(true);
+        greenGraphView.getViewport().setMinX(0);
+        greenGraphView.getViewport().setMaxX(350);
+        greenGraphView.getGridLabelRenderer().setVerticalLabelsVisible(false);
+        greenGraphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+
+        blueGraphView.addSeries(blueData);
+        blueGraphView.setTitle("Average Blue Pixels");
+        blueGraphView.getViewport().setXAxisBoundsManual(true);
+        blueGraphView.getViewport().setMinX(0);
+        blueGraphView.getViewport().setMaxX(350);
+        blueGraphView.getGridLabelRenderer().setVerticalLabelsVisible(false);
+        blueGraphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+
+        turnOnFlash.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                camera.getCameraControl().enableTorch(true);
+
+            }
+        });
 
         startMeasureButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if(checkCameraPermission()) {
                     startRecording();
+                    startTime=System.currentTimeMillis();
+                    counter=System.currentTimeMillis();
                 }else{
                     ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
                 }
@@ -111,11 +162,13 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 isMeasuring=false;
                 camera.getCameraControl().enableTorch(false);
-                graphView.removeAllSeries();
+//                graphView.removeAllSeries();
 
                 //TODO reset data
             }
         });
+
+        redDataValues=new ArrayList<>();
     }
 
     @Override
@@ -144,7 +197,6 @@ public class MainActivity extends AppCompatActivity {
 
     public void startRecording() {
         try {
-            camera.getCameraControl().enableTorch(true);
             isMeasuring = true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -191,6 +243,7 @@ public class MainActivity extends AppCompatActivity {
 
         preview.setSurfaceProvider(mPreviewView.getSurfaceProvider());
         camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis, videoCapture);
+
     }
 
     ImageAnalysis.Analyzer analyzer = new ImageAnalysis.Analyzer() {
@@ -209,13 +262,19 @@ public class MainActivity extends AppCompatActivity {
 
             if (!processing.compareAndSet(false, true)) return;
 
-            int imgAvg = ImageProcessing.decodeYUV420SPtoRedAvg(data.clone(),width, height);
+            ImageProcessing.Pixel avg = ImageProcessing.decodeYUV420SPtoAvg(data.clone(),width, height);
 
-            rawPoints++;
-            rawData.appendData(new DataPoint(rawPoints, imgAvg*10), false, 2);
+            redPoints++;
+            redData.appendData(new DataPoint(redPoints, avg.getRed()), true, 1000);
 
+            greenPoints++;
+            greenData.appendData(new DataPoint(greenPoints,avg.getGreen()),true,1000);
 
-            if (imgAvg == 0 || imgAvg == 255) {
+            bluePoints++;
+            blueData.appendData(new DataPoint(bluePoints,avg.getBlue()),true,1000);
+
+            //detecting using average
+            if (avg.getRed() == 0 || avg.getRed() == 255) {
                 processing.set(false);
                 return;
             }
@@ -230,19 +289,21 @@ public class MainActivity extends AppCompatActivity {
             }
 
             int rollingAverage = (averageArrayCnt > 0) ? (averageArrayAvg / averageArrayCnt) : 0;
+            rollingAveragePoints++;
+            rollingAverageSeries.appendData(new DataPoint(rollingAveragePoints,rollingAverage),true,1000);
             TYPE newType = currentType;
-            if (imgAvg < rollingAverage) {
+            if (avg.getRed() < rollingAverage) {
                 newType = TYPE.RED;
                 if (newType != currentType) {
                     beats++;
                     Log.d(TAG, "BEAT!! beats=" + beats);
                 }
-            } else if (imgAvg > rollingAverage) {
+            } else if (avg.getRed() > rollingAverage) {
                 newType = TYPE.GREEN;
             }
 
             if (averageIndex == averageArraySize) averageIndex = 0;
-            averageArray[averageIndex] = imgAvg;
+            averageArray[averageIndex] = avg.getRed();
             averageIndex++;
 
             if (newType != currentType) {
@@ -274,11 +335,41 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 int beatsAvg = (beatsArrayAvg / beatsArrayCnt);
-                heartRateTextView.setText(String.valueOf(beatsAvg));
+                heartRateTextViewMean.setText(String.valueOf(beatsAvg));
                 startTime = System.currentTimeMillis();
                 beats = 0;
+                counter++;
+            }
+
+
+            //detecting using peak
+            redDataValues.add((double)avg.getRed());
+            long t = (endTime-counter)/1000;
+            Log.d(TAG, "t: "+t);
+            if(t>=60){
+                counter = System.currentTimeMillis();
+                detectPeaks();
             }
             processing.set(false);
+        }
+    }
+    void detectPeaks(){
+        Log.d("abh", "processFrame: detecting peaks, size:"+redDataValues.size());
+        int lag = 10;
+        if(redDataValues.size()>lag) {
+            Log.d("abh", "into if:"+redDataValues.size());
+
+            List<Integer> signals = (new SignalDetector().analyzeDataForSignals(redDataValues, lag, 3d, 0.55)).get("signals");
+            int peaks = 0;
+            for (int i =0;i<signals.size();i++) {
+                if(signals.get(i)==1){
+                    Log.d("abh", "signal detected at "+i);
+                    peaks++;
+                }
+            }
+            heartRateTextViewMax.setText(String.valueOf(peaks));
+            redDataValues.clear();
+
         }
     }
 }

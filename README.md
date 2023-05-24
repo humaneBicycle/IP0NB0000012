@@ -12,6 +12,6 @@
 
 ## Estimate Heart Rate
 
-* The sample data could be found [here](https://drive.google.com/drive/folders/13pcVNL2Y2oKPHTkQ53QaIpHNNlKOUu3z?usp=sharing)
+* The sample data could be found [here](https://raw.githubusercontent.com/humaneBicycle/IP0NB0000012/main/Task%202/result.csv)
 * The source code could be found [here](https://github.com/humaneBicycle/IP0NB0000012/tree/main/Task%202/EstimateHeartRate)
-* The jupyter notebook can be found [here]()
+* The jupyter notebook can be found [here](https://colab.research.google.com/drive/1pIQy-Peegqj2cLXWoTJTKuAt3F4jIm0K?usp=sharing)
